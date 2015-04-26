@@ -26,7 +26,7 @@ end
 PuppetLint.new_check(:trailing_whitespace) do
   def check
     tokens.select { |token|
-      token.type == :WHITESPACE
+      [:WHITESPACE, :INDENT].include?(token.type)
     }.select { |token|
       token.next_token.nil? || token.next_token.type == :NEWLINE
     }.each do |token|
@@ -112,7 +112,8 @@ PuppetLint.new_check(:arrow_alignment) do
         if token.type == :FARROW
           (level_tokens[indent_depth_idx] ||= []) << token
           prev_indent_token = resource_tokens[0..idx].rindex { |t| t.type == :INDENT }
-          indent_length = resource_tokens[prev_indent_token].to_manifest.length + token.prev_code_token.to_manifest.length + 2
+          indent_token_length = prev_indent_token.nil? ? 0 : resource_tokens[prev_indent_token].to_manifest.length
+          indent_length = indent_token_length + token.prev_code_token.to_manifest.length + 2
 
           if indent_depth[indent_depth_idx] < indent_length
             indent_depth[indent_depth_idx] = indent_length
@@ -124,7 +125,7 @@ PuppetLint.new_check(:arrow_alignment) do
           level_tokens[indent_depth_idx] ||= []
         elsif token.type == :RBRACE
           level_tokens[indent_depth_idx].each do |arrow_tok|
-            unless arrow_tok.column == indent_depth[indent_depth_idx]
+            unless arrow_tok.column == indent_depth[indent_depth_idx] || level_tokens[indent_depth_idx].size == 1
               arrows_on_line = level_tokens[indent_depth_idx].select { |t| t.line == arrow_tok.line }
               notify :warning, {
                 :message        => 'indentation of => is not properly aligned',
